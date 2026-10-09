@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FLEX Essay Trainer</title>
+<style>
+:root{--bg:#fff;--fg:#14213d;--panel:#cfe2f3;--box:#eee;--line:#999;--hl:#fff59a;--navy:#0b2a5b;--red:#b00020;--ok:#2e9e44;--muted:#666;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15181f;--fg:#e8ecf5;--panel:#27364d;--box:#232833;--line:#555;--hl:#6b6320;--navy:#3b66b5;--red:#ff6b81;--muted:#9aa3b5}}
+:root[data-theme="dark"]{--bg:#15181f;--fg:#e8ecf5;--panel:#27364d;--box:#232833;--line:#555;--hl:#6b6320;--navy:#3b66b5;--red:#ff6b81;--muted:#9aa3b5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:Roboto,Arial,sans-serif}
+.wrap{max-width:760px;margin:0 auto;padding:16px}
+.sec{border:1px solid var(--line)}
+.sec h3{margin:0;padding:6px 10px;background:var(--panel);font-size:15px;font-weight:500;border-bottom:1px solid var(--line)}
+.timer{margin:10px;padding:18px;border:3px solid var(--ok);text-align:center;font-size:40px;font-weight:500}
+.timer.low{border-color:var(--red);color:var(--red)}
+.times{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 10px 10px}
+.times div{background:var(--box);padding:8px;font-size:14px}
+.times i{display:block;color:var(--muted);font-size:13px}
+.times span{background:var(--hl);padding:0 3px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+button{font:inherit;padding:11px 16px;border-radius:4px;border:1px solid var(--navy);cursor:pointer}
+.p{background:var(--navy);color:#fff}.s{background:transparent;color:var(--fg);border-color:var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+h1{margin:14px 0 2px;font-size:30px;color:var(--navy);border-bottom:1px solid var(--fg);padding-bottom:4px;font-weight:500}
+.cat{color:var(--muted);font-size:14px;margin:4px 0 10px}
+.topic{background:var(--hl);padding:14px 12px;font-size:19px;margin-bottom:12px}
+textarea{width:100%;height:260px;padding:12px;font:inherit;font-size:17px;color:var(--fg);background:var(--bg);border:2px solid #e8a317;border-radius:4px;resize:vertical}
+textarea:disabled{background:var(--box)}
+.cnt{margin-top:6px;font-size:13px;font-style:italic;font-weight:bold;color:var(--red)}
+.cnt.ok{color:var(--ok)}
+.msg{margin-top:10px;font-size:15px;font-weight:500}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="sec">
+  <h3>Timed Section Progress</h3>
+  <div class="timer" id="timer">15m 00s</div>
+  <div class="times">
+   <div><i>Started</i><span id="st">&nbsp;--:--:--&nbsp;</span></div>
+   <div><i>Ending</i><span id="en">&nbsp;--:--:--&nbsp;</span></div>
+  </div>
+ </div>
+ <div class="btns">
+  <button class="p" id="start">Начать</button>
+  <button class="p" id="end" disabled>End Timer</button>
+  <button class="s" id="next">Новая тема</button>
+ </div>
+ <h1 id="no">Essay No. 1</h1>
+ <div class="cat" id="cat"></div>
+ <div class="topic" id="topic"></div>
+ <textarea id="ta" maxlength="1500" disabled placeholder="Нажмите «Начать», чтобы открыть поле и запустить таймер"></textarea>
+ <div class="cnt" id="cnt"></div>
+ <div class="msg" id="msg"></div>
+</div>
+<script>
+var TOTAL=900,MIN=250,MAX=1500;
+var TOPICS=[
+["Leadership & Responsibility","Describe an experience where you showed leadership."],
+["Leadership & Responsibility","Tell about a time you took responsibility for a mistake."],
+["Community","How do you contribute to your community? Give a specific example."],
+["Community","Describe a problem in your hometown and how you would solve it."],
+["Challenges","Describe a challenge you overcame and what you learned from it."],
+["Challenges","Tell about a time you failed. What did you do next?"],
+["Cultural Exchange","Why do you want to study in the United States?"],
+["Cultural Exchange","What part of your culture would you like to share with Americans, and why?"],
+["Cultural Exchange","How would you handle cultural differences with your host family?"],
+["Goals","Where do you see yourself in ten years?"],
+["Goals","How will this exchange program help you reach your goals?"],
+["Teamwork","Describe a time you worked in a team. What was your role?"],
+["Teamwork","Tell about a time you disagreed with someone and how you resolved it."],
+["Personality","What are your greatest strengths and weaknesses?"],
+["Personality","Describe a person who has influenced you most."],
+["Interests","Tell about a hobby or activity that matters a lot to you."],
+["Values","What does it mean to be a good friend?"],
+["Values","Is it more important to be honest or kind? Explain your choice."],
+["Education","What is the most important thing you learned at school, not from a textbook?"],
+["Future","How will you use your experience after returning home?"]
+];
+var $=function(i){return document.getElementById(i)};
+var n=0,last=-1,left=TOTAL,iv=null,running=false,endTs=0;
+function fmt(s){var m=Math.floor(s/60),r=s%60;return m+"m "+(r<10?"0":"")+r+"s"}
+function clock(d){return d.toLocaleTimeString("en-US")}
+function counter(){
+ var l=$("ta").value.length,t=l+" characters counted. Minimum of "+MIN+" characters required. Maximum of "+MAX+" characters allowed.";
+ $("cnt").textContent=t;$("cnt").className="cnt"+(l>=MIN?" ok":"");
+}
+function draw(){
+ $("timer").textContent=fmt(left);
+ $("timer").className="timer"+(left<=60?" low":"");
+}
+function stop(reason){
+ clearInterval(iv);running=false;
+ $("ta").disabled=true;$("end").disabled=true;$("start").disabled=false;
+ var l=$("ta").value.length;
+ $("msg").textContent=(reason==="time"?"Время вышло. ":"Таймер остановлен. ")+"Написано символов: "+l+(l<MIN?" — меньше минимума ("+MIN+")." : ".");
+}
+function tick(){
+ left=Math.max(0,Math.round((endTs-Date.now())/1000));
+ draw();
+ if(left<=0)stop("time");
+}
+function topic(){
+ var i;do{i=Math.floor(Math.random()*TOPICS.length)}while(i===last&&TOPICS.length>1);
+ last=i;n++;
+ $("no").textContent="Essay No. "+n;
+ $("cat").textContent=TOPICS[i][0];
+ $("topic").textContent=TOPICS[i][1];
+}
+function reset(){
+ clearInterval(iv);running=false;left=TOTAL;draw();
+ $("ta").value="";$("ta").disabled=true;$("end").disabled=true;$("start").disabled=false;
+ $("st").innerHTML="&nbsp;--:--:--&nbsp;";$("en").innerHTML="&nbsp;--:--:--&nbsp;";
+ $("msg").textContent="";counter();
+}
+$("start").onclick=function(){
+ if(running)return;
+ var now=new Date();
+ if(left<=0||$("ta").value.length&&!$("ta").disabled){left=TOTAL}
+ if(left===TOTAL||!$("st").textContent.match(/\d/)){
+  $("st").textContent=" "+clock(now)+" ";
+  $("en").textContent=" "+clock(new Date(now.getTime()+TOTAL*1000))+" ";
+ }
+ endTs=Date.now()+left*1000;running=true;
+ $("ta").disabled=false;$("ta").focus();$("end").disabled=false;$("start").disabled=true;$("msg").textContent="";
+ iv=setInterval(tick,250);
+};
+$("end").onclick=function(){if(running)stop("manual")};
+$("next").onclick=function(){reset();topic()};
+$("ta").addEventListener("input",counter);
+topic();reset();
+</script>
+</body>
+</html>
